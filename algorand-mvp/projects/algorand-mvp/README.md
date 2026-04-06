@@ -27,21 +27,24 @@ Production-oriented modular contract scaffold for GhostGas, a decentralized ad n
 ## 2) Smart Contracts
 
 - `contracts/campaign.py`
-  - Campaign budget, targeting, CPI, pause/resume state
+  - ASA-backed campaign budget (USDC or custom ASA)
+  - Secure deposit via group transactions
   - Deducts spend for verified impressions only
-  - Security: advertiser-only config, settlement-executor-only deductions
 
 - `contracts/attestation.py`
-  - Stores immutable watch proofs in box storage
-  - Security: verifier-only writes, replay protection by `proof_id`
+  - Stores one-time ad-watch proofs
+  - Replay-safe via consume pattern
 
 - `contracts/settlement.py`
-  - Applies deterministic revenue splits in basis points
-  - Security: oracle-only settlement, one-time settlement per proof
+  - Core execution engine
+  - Verifies attestation, deducts campaign, splits funds
+  - Routes funds to publisher and paymaster
+  - Grants sponsorship eligibility
 
 - `contracts/paymaster.py`
-  - Tracks user eligibility windows and spend caps
-  - Security: settlement-only grant/consume, usage cap and expiry checks
+  - Holds gas sponsorship funds (ASA)
+  - Tracks eligibility window and usage caps
+  - Sponsors user transactions via asset transfer
 
 ## 3) Deployment Scripts and AlgoKit Setup
 
@@ -65,12 +68,17 @@ Production-oriented modular contract scaffold for GhostGas, a decentralized ad n
 
 ## 4) Example Flow
 
-1. Advertiser creates campaign and deposits budget in `CampaignContract`
-2. User watches an ad
-3. Off-chain verifier records proof in `AttestationContract`
-4. Settlement oracle settles impression in `SettlementContract`
-5. Settlement executor deducts campaign budget and grants user eligibility in `PaymasterContract`
-6. User submits sponsored transaction while within eligibility window and usage cap
+1. Advertiser creates campaign and deposits ASA (USDC) into CampaignContract
+2. User watches an ad inside a publisher dApp
+3. Off-chain verifier records proof in AttestationContract
+4. Oracle calls SettlementContract with proof_id
+5. SettlementContract:
+   - consumes attestation
+   - deducts campaign budget
+   - splits funds (publisher + paymaster)
+   - funds PaymasterContract
+   - grants user sponsorship eligibility
+6. User receives sponsored balance and can submit transactions
 
 ## 5) Testing Strategy
 
