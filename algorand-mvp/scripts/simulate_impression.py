@@ -89,6 +89,9 @@ def main():
         executor=set_id
     )
 
+    campaign.call("opt_in_asset")
+    paymaster.call("opt_in_asset")
+
     print("Campaign:", camp_id)
 
     params = client.suggested_params()

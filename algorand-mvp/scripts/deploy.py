@@ -109,6 +109,9 @@ def deploy():
         executor=settlement_app_id
     )
 
+    campaign.call("opt_in_asset")
+    paymaster.call("opt_in_asset")
+
     print("ASA_ID:", ASA_ID)
     print("Campaign:", campaign_app_id)
     print("Settlement:", settlement_app_id)

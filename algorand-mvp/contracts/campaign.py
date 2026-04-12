@@ -1,5 +1,3 @@
-"""GhostGas campaign contract (FIXED)."""
-
 from algopy import *
 from algopy.arc4 import ARC4Contract, String, abimethod
 
@@ -44,6 +42,19 @@ class CampaignContract(ARC4Contract):
         self.active.value = UInt64(1)
 
     @abimethod()
+    def opt_in_asset(self) -> None:
+        assert Txn.sender == self.advertiser.value
+
+        InnerTxnBuilder.Begin()
+        InnerTxnBuilder.SetFields({
+            TxnField.type_enum: TxnType.AssetTransfer,
+            TxnField.xfer_asset: self.asset_id.value,
+            TxnField.asset_receiver: Global.current_application_address(),
+            TxnField.asset_amount: UInt64(0),
+        })
+        InnerTxnBuilder.Submit()
+
+    @abimethod()
     def set_settlement_executor(self, executor: Account) -> None:
         assert Txn.sender == self.advertiser.value
         self.settlement_executor.value = executor
@@ -81,7 +92,6 @@ class CampaignContract(ARC4Contract):
         self.budget.value -= self.cost_per_impression.value
         self.spent.value += self.cost_per_impression.value
 
-        # auto pause if empty
         if self.budget.value < self.cost_per_impression.value:
             self.active.value = UInt64(0)
 
