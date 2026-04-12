@@ -168,3 +168,9 @@ cython_debug/
 # NPM
 node_modules
 
+# Algorand build artifacts
+*.teal
+*.json
+*.puya.map
+artifacts/
+
