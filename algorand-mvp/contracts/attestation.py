@@ -1,20 +1,19 @@
-"""GhostGas attestation registry contract."""
+"""GhostGas attestation registry contract (FIXED)."""
 
 from algopy import *
 from algopy.arc4 import *
 
 
 class AttestationContract(ARC4Contract):
-    """Stores one-time ad-watch attestations to block replay + enable validation."""
 
     admin = GlobalState(Account)
     verifier = GlobalState(Account)
 
-
     attestations = BoxMap(String, UInt64, key_prefix="att")
 
-
     settlement = GlobalState(UInt64)
+
+    EXPIRY_WINDOW = UInt64(300)  # 5 min
 
     @abimethod(create=True)
     def create(self, verifier: Account) -> None:
@@ -24,39 +23,35 @@ class AttestationContract(ARC4Contract):
 
     @abimethod()
     def set_verifier(self, verifier: Account) -> None:
-        assert Txn.sender == self.admin.value, "only admin"
+        assert Txn.sender == self.admin.value
         self.verifier.value = verifier
 
     @abimethod()
     def set_settlement(self, app_id: UInt64) -> None:
-        """Optional: restrict who can consume attestations"""
-        assert Txn.sender == self.admin.value, "only admin"
+        assert Txn.sender == self.admin.value
         self.settlement.value = app_id
-
 
     @abimethod()
     def record_attestation(self, proof_id: String, observed_at: UInt64) -> None:
-        assert Txn.sender == self.verifier.value, "only verifier"
-        assert observed_at > UInt64(0), "invalid timestamp"
+        assert Txn.sender == self.verifier.value
+        assert observed_at > UInt64(0)
 
-        # prevent replay
         _, exists = self.attestations.maybe(proof_id)
-        assert not exists, "already recorded"
+        assert not exists
 
         self.attestations[proof_id] = observed_at
 
-
     @abimethod()
     def consume_attestation(self, proof_id: String) -> UInt64:
-        """Returns 1 if valid and deletes it (one-time use)."""
 
-        # optional restriction
         if self.settlement.value != UInt64(0):
-            assert Txn.sender.application_id() == self.settlement.value, "only settlement"
+            assert Txn.sender.application_id() == self.settlement.value
 
-        val, exists = self.attestations.maybe(proof_id)
-        assert exists, "invalid proof"
+        observed_at, exists = self.attestations.maybe(proof_id)
+        assert exists
 
+        # 🔥 expiry check
+        assert Global.latest_timestamp() - observed_at <= self.EXPIRY_WINDOW
 
         del self.attestations[proof_id]
 

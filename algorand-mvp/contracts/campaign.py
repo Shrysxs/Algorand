@@ -1,3 +1,5 @@
+"""GhostGas campaign contract (FIXED)."""
+
 from algopy import *
 from algopy.arc4 import ARC4Contract, String, abimethod
 
@@ -25,6 +27,7 @@ class CampaignContract(ARC4Contract):
         min_view_seconds: UInt64,
         target_region: String,
     ) -> None:
+
         assert cost_per_impression > UInt64(0)
 
         self.advertiser.value = Txn.sender
@@ -39,20 +42,6 @@ class CampaignContract(ARC4Contract):
 
         self.spent.value = UInt64(0)
         self.active.value = UInt64(1)
-
-    @abimethod()
-    def configure(
-        self,
-        cost_per_impression: UInt64,
-        min_view_seconds: UInt64,
-        target_region: String,
-    ) -> None:
-        assert Txn.sender == self.advertiser.value
-        assert cost_per_impression > UInt64(0)
-
-        self.cost_per_impression.value = cost_per_impression
-        self.min_view_seconds.value = min_view_seconds
-        self.target_region.value = target_region
 
     @abimethod()
     def set_settlement_executor(self, executor: Account) -> None:
@@ -71,18 +60,8 @@ class CampaignContract(ARC4Contract):
         assert pay.asset_receiver() == Global.current_application_address()
         assert pay.asset_amount() == amount
 
-        self.budget.value = self.budget.value + amount
+        self.budget.value += amount
         return self.budget.value
-
-    @abimethod()
-    def pause(self) -> None:
-        assert Txn.sender == self.advertiser.value
-        self.active.value = UInt64(0)
-
-    @abimethod()
-    def resume(self) -> None:
-        assert Txn.sender == self.advertiser.value
-        self.active.value = UInt64(1)
 
     @abimethod()
     def deduct_for_impression(
@@ -99,11 +78,15 @@ class CampaignContract(ARC4Contract):
 
         assert self.budget.value >= self.cost_per_impression.value
 
-        self.budget.value = self.budget.value - self.cost_per_impression.value
-        self.spent.value = self.spent.value + self.cost_per_impression.value
+        self.budget.value -= self.cost_per_impression.value
+        self.spent.value += self.cost_per_impression.value
+
+        # auto pause if empty
+        if self.budget.value < self.cost_per_impression.value:
+            self.active.value = UInt64(0)
 
         return self.cost_per_impression.value
 
     @abimethod(readonly=True)
-    def get_budget(self) -> UInt64:
-        return self.budget.value
+    def get_asset_id(self) -> UInt64:
+        return self.asset_id.value

@@ -1,4 +1,4 @@
-"""GhostGas settlement coordinator contract."""
+"""GhostGas settlement contract (FIXED)."""
 
 from algopy import *
 from algopy.arc4 import ARC4Contract, String, abimethod
@@ -11,8 +11,6 @@ class SettlementContract(ARC4Contract):
 
     publisher_bps = GlobalState(UInt64)
     gas_pool_bps = GlobalState(UInt64)
-
-    total_settled = GlobalState(UInt64)
 
     attestation_app = GlobalState(UInt64)
     paymaster_app = GlobalState(UInt64)
@@ -40,21 +38,6 @@ class SettlementContract(ARC4Contract):
         self.attestation_app.value = attestation_app
         self.paymaster_app.value = paymaster_app
 
-        self.total_settled.value = UInt64(0)
-
-    @abimethod()
-    def set_oracle(self, oracle: Account) -> None:
-        assert Txn.sender == self.admin.value
-        self.oracle.value = oracle
-
-    @abimethod()
-    def set_splits(self, publisher_bps: UInt64, gas_pool_bps: UInt64) -> None:
-        assert Txn.sender == self.admin.value
-        assert publisher_bps + gas_pool_bps == UInt64(10_000)
-
-        self.publisher_bps.value = publisher_bps
-        self.gas_pool_bps.value = gas_pool_bps
-
     @abimethod()
     def settle_impression(
         self,
@@ -62,24 +45,31 @@ class SettlementContract(ARC4Contract):
         campaign_app: UInt64,
         publisher: Account,
         user: Account,
+        user_view_seconds: UInt64,
+        user_region: String,
         now_ts: UInt64,
     ) -> None:
 
         assert Txn.sender == self.oracle.value
 
-        # replay protection
         _, exists = self.settled_proofs.maybe(proof_id)
         assert not exists
 
-        # verify + consume attestation
+        # attestation
         attestation = Application(self.attestation_app.value)
         assert attestation.call("consume_attestation", proof_id) == UInt64(1)
 
-        # deduct from campaign
+        # campaign
         campaign = Application(campaign_app)
-        amount = campaign.call("deduct_for_impression", UInt64(0), String(""))
 
-        # split
+        amount = campaign.call(
+            "deduct_for_impression",
+            user_view_seconds,
+            user_region
+        )
+
+        asset_id = campaign.call("get_asset_id")
+
         publisher_amount = (amount * self.publisher_bps.value) // UInt64(10_000)
         gas_pool_amount = amount - publisher_amount
 
@@ -89,6 +79,7 @@ class SettlementContract(ARC4Contract):
             TxnField.type_enum: TxnType.AssetTransfer,
             TxnField.asset_receiver: publisher,
             TxnField.asset_amount: publisher_amount,
+            TxnField.xfer_asset: asset_id,
         })
         InnerTxnBuilder.Submit()
 
@@ -96,13 +87,6 @@ class SettlementContract(ARC4Contract):
         paymaster = Application(self.paymaster_app.value)
         paymaster.call("fund", gas_pool_amount)
 
-        # grant sponsorship
         paymaster.call("grant_sponsorship", user, now_ts)
 
         self.settled_proofs[proof_id] = amount
-        self.total_settled.value = self.total_settled.value + amount
-
-    @abimethod(readonly=True)
-    def is_settled(self, proof_id: String) -> UInt64:
-        _, exists = self.settled_proofs.maybe(proof_id)
-        return UInt64(1) if exists else UInt64(0)
