@@ -1,0 +1,251 @@
+{
+  "version": 3,
+  "sources": [
+    "attestation.py"
+  ],
+  "mappings": ";AAIA;;AAAA;AAAA;AAAA;;AAAA;;;AAAA;;;;;;AAAA;;;AAAA;;;;AAAA;AAAA;;;;;;AAAA;;;AAAA;;;;AAAA;AAEK;;AAAA;AAIA;;;AAAA;AAAA;;AAAA;AAAA;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;;;;;;;;;;;;;;AAAA;AAAA;;AAAA",
+  "op_pc_offset": 0,
+  "pc_events": {
+    "1": {
+      "subroutine": "algopy.arc4.ARC4Contract.approval_program",
+      "params": {},
+      "block": "main",
+      "stack_in": [],
+      "op": "txn OnCompletion",
+      "defined_out": [
+        "tmp%0#1"
+      ],
+      "stack_out": [
+        "tmp%0#1"
+      ]
+    },
+    "3": {
+      "op": "!",
+      "defined_out": [
+        "tmp%1#0"
+      ],
+      "stack_out": [
+        "tmp%1#0"
+      ]
+    },
+    "4": {
+      "op": "assert",
+      "stack_out": []
+    },
+    "5": {
+      "op": "txn ApplicationID",
+      "defined_out": [
+        "tmp%2#0"
+      ],
+      "stack_out": [
+        "tmp%2#0"
+      ]
+    },
+    "7": {
+      "op": "bz main_create_NoOp@5",
+      "stack_out": []
+    },
+    "10": {
+      "op": "pushbytes 0x44bb9301 // method \"verify(string)uint64\"",
+      "defined_out": [
+        "Method(verify(string)uint64)"
+      ],
+      "stack_out": [
+        "Method(verify(string)uint64)"
+      ]
+    },
+    "16": {
+      "op": "txna ApplicationArgs 0",
+      "defined_out": [
+        "Method(verify(string)uint64)",
+        "tmp%4#0"
+      ],
+      "stack_out": [
+        "Method(verify(string)uint64)",
+        "tmp%4#0"
+      ]
+    },
+    "19": {
+      "op": "match verify",
+      "stack_out": []
+    },
+    "23": {
+      "op": "err"
+    },
+    "24": {
+      "block": "main_create_NoOp@5",
+      "stack_in": [],
+      "op": "pushbytes 0x4c5c61ba // method \"create()void\"",
+      "defined_out": [
+        "Method(create()void)"
+      ],
+      "stack_out": [
+        "Method(create()void)"
+      ]
+    },
+    "30": {
+      "op": "txna ApplicationArgs 0",
+      "defined_out": [
+        "Method(create()void)",
+        "tmp%5#0"
+      ],
+      "stack_out": [
+        "Method(create()void)",
+        "tmp%5#0"
+      ]
+    },
+    "33": {
+      "op": "match main_create_route@6",
+      "stack_out": []
+    },
+    "37": {
+      "op": "err"
+    },
+    "38": {
+      "block": "main_create_route@6",
+      "stack_in": [],
+      "op": "pushint 1",
+      "defined_out": [
+        "1"
+      ],
+      "stack_out": [
+        "1"
+      ]
+    },
+    "40": {
+      "op": "return",
+      "stack_out": []
+    },
+    "41": {
+      "subroutine": "attestation.AttestationContract.verify[routing]",
+      "params": {},
+      "block": "verify",
+      "stack_in": [],
+      "op": "txna ApplicationArgs 1",
+      "defined_out": [
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0"
+      ]
+    },
+    "44": {
+      "op": "dup",
+      "defined_out": [
+        "tmp%0#0",
+        "tmp%0#0 (copy)"
+      ],
+      "stack_out": [
+        "tmp%0#0",
+        "tmp%0#0 (copy)"
+      ]
+    },
+    "45": {
+      "op": "pushint 0",
+      "defined_out": [
+        "0",
+        "tmp%0#0",
+        "tmp%0#0 (copy)"
+      ],
+      "stack_out": [
+        "tmp%0#0",
+        "tmp%0#0 (copy)",
+        "0"
+      ]
+    },
+    "47": {
+      "error": "invalid array length header",
+      "op": "extract_uint16 // on error: invalid array length header",
+      "defined_out": [
+        "aggregate%array_length%0#0",
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0",
+        "aggregate%array_length%0#0"
+      ]
+    },
+    "48": {
+      "op": "pushint 2",
+      "defined_out": [
+        "2",
+        "aggregate%array_length%0#0",
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0",
+        "aggregate%array_length%0#0",
+        "2"
+      ]
+    },
+    "50": {
+      "op": "+",
+      "defined_out": [
+        "add%0#0",
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0",
+        "add%0#0"
+      ]
+    },
+    "51": {
+      "op": "swap",
+      "stack_out": [
+        "add%0#0",
+        "tmp%0#0"
+      ]
+    },
+    "52": {
+      "op": "len",
+      "defined_out": [
+        "add%0#0",
+        "len%0#0"
+      ],
+      "stack_out": [
+        "add%0#0",
+        "len%0#0"
+      ]
+    },
+    "53": {
+      "op": "==",
+      "defined_out": [
+        "eq%0#0"
+      ],
+      "stack_out": [
+        "eq%0#0"
+      ]
+    },
+    "54": {
+      "error": "invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
+      "op": "assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
+      "stack_out": []
+    },
+    "55": {
+      "op": "pushbytes 0x151f7c750000000000000001",
+      "defined_out": [
+        "0x151f7c750000000000000001"
+      ],
+      "stack_out": [
+        "0x151f7c750000000000000001"
+      ]
+    },
+    "69": {
+      "op": "log",
+      "stack_out": []
+    },
+    "70": {
+      "op": "pushint 1",
+      "defined_out": [
+        "1"
+      ],
+      "stack_out": [
+        "1"
+      ]
+    },
+    "72": {
+      "op": "return",
+      "stack_out": []
+    }
+  }
+}

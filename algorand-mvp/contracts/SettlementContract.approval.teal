@@ -1,0 +1,79 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 8 1
+    bytecblock "publisher_bps"
+    // contracts/settlement.py:5
+    // class SettlementContract(ARC4Contract):
+    txn OnCompletion
+    !
+    assert
+    txn ApplicationID
+    bz main_create_NoOp@5
+    pushbytes 0xdd987b7d // method "settle(uint64)uint64"
+    txna ApplicationArgs 0
+    match settle
+    err
+
+main_create_NoOp@5:
+    // contracts/settlement.py:5
+    // class SettlementContract(ARC4Contract):
+    pushbytes 0x240d2f67 // method "create(uint64)void"
+    txna ApplicationArgs 0
+    match create
+    err
+
+
+// settlement.SettlementContract.create[routing]() -> void:
+create:
+    // contracts/settlement.py:7
+    // @abimethod(create="require")
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // contracts/settlement.py:9
+    // self.publisher_bps = publisher_bps
+    bytec_0 // "publisher_bps"
+    swap
+    app_global_put
+    // contracts/settlement.py:7
+    // @abimethod(create="require")
+    intc_1 // 1
+    return
+
+
+// settlement.SettlementContract.settle[routing]() -> void:
+settle:
+    // contracts/settlement.py:11
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_0 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // contracts/settlement.py:13
+    // return (amount * self.publisher_bps) // UInt64(10_000)
+    pushint 0
+    bytec_0 // "publisher_bps"
+    app_global_get_ex
+    assert // check self.publisher_bps exists
+    *
+    pushint 10000
+    /
+    // contracts/settlement.py:11
+    // @abimethod()
+    itob
+    pushbytes 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return

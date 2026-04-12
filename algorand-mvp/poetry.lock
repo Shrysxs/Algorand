@@ -201,6 +201,17 @@ py-algorand-sdk = ">=2.11.0,<3.0.0"
 typing-extensions = ">=4.6.0"
 
 [[package]]
+name = "algopy"
+version = "0.6.0"
+description = "ALGOPY: Taylor Arithmetic Computation and Algorithmic Differentiation"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "algopy-0.6.0.tar.gz", hash = "sha256:d88674abf7d1e21da47fbb3d18f310bb1d6534787c87babf807ebfa1faff59ee"},
+]
+
+[[package]]
 name = "algorand-python"
 version = "3.4.0"
 description = "API for writing Algorand Python Smart contracts"
@@ -2864,4 +2875,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "54107f9a438899952c9a665dcd624303effacec614c66c75a08766ee8b27df74"
+content-hash = "fccfe0e61b90e8f82a65fde7e67145222cc9b2523fd51f84ef13d16d4d19e834"
