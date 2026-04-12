@@ -5,14 +5,16 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from algokit_utils import get_algod_client, get_indexer_client, ApplicationClient
-from algosdk.account import generate_account
+from algokit_utils import get_algod_client, get_account
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS_DIR = ROOT / "contracts"
 ARTIFACTS_DIR = ROOT / "artifacts" / "ghostgas"
 
 CONTRACT_NAMES = ["campaign", "attestation", "settlement", "paymaster"]
+
+ASA_ID = 0
 
 
 def run(cmd: list[str]) -> None:
@@ -58,95 +60,56 @@ def compile_all():
 
 def deploy():
     algod = get_algod_client()
-    indexer = get_indexer_client()
 
-    private_key, address = generate_account()
+    acct = get_account(algod, "dispenser")
+    signer = AccountTransactionSigner(acct.private_key)
 
-    print(f"Deployer: {address}")
-
-    # === ATTTESTATION ===
     from artifacts.ghostgas.attestation.attestation_client import AttestationClient
-
-    attestation = AttestationClient(
-        algod_client=algod,
-        creator=address,
-        signer=private_key,
-    )
-
-    attestation_app_id, _, _ = attestation.create(
-        verifier=address
-    )
-
-    print("Attestation App ID:", attestation_app_id)
-
-    # === PAYMASTER ===
     from artifacts.ghostgas.paymaster.paymaster_client import PaymasterClient
+    from artifacts.ghostgas.settlement.settlement_client import SettlementClient
+    from artifacts.ghostgas.campaign.campaign_client import CampaignClient
 
-    paymaster = PaymasterClient(
-        algod_client=algod,
-        creator=address,
-        signer=private_key,
-    )
+    attestation = AttestationClient(algod, acct.address, signer)
+    attestation_app_id, _, _ = attestation.create(verifier=acct.address)
 
+    paymaster = PaymasterClient(algod, acct.address, signer)
     paymaster_app_id, _, _ = paymaster.create(
-        settlement_executor=address,
-        asset_id=0,  # replace with USDC ASA
+        settlement_executor=acct.address,
+        asset_id=ASA_ID,
         usage_window_seconds=600,
         max_uses_per_window=3,
     )
 
-    print("Paymaster App ID:", paymaster_app_id)
-
-    # === SETTLEMENT ===
-    from artifacts.ghostgas.settlement.settlement_client import SettlementClient
-
-    settlement = SettlementClient(
-        algod_client=algod,
-        creator=address,
-        signer=private_key,
-    )
-
+    settlement = SettlementClient(algod, acct.address, signer)
     settlement_app_id, _, _ = settlement.create(
-        oracle=address,
+        oracle=acct.address,
         publisher_bps=7000,
         gas_pool_bps=3000,
         attestation_app=attestation_app_id,
         paymaster_app=paymaster_app_id,
     )
 
-    print("Settlement App ID:", settlement_app_id)
+    attestation.call("set_settlement", app_id=settlement_app_id)
 
-    # link attestation -> settlement
-    attestation.call(
-        "set_settlement",
-        app_id=settlement_app_id
+    paymaster.call(
+        "set_settlement_executor",
+        settlement_executor=settlement_app_id
     )
 
-    # === CAMPAIGN ===
-    from artifacts.ghostgas.campaign.campaign_client import CampaignClient
-
-    campaign = CampaignClient(
-        algod_client=algod,
-        creator=address,
-        signer=private_key,
-    )
-
+    campaign = CampaignClient(algod, acct.address, signer)
     campaign_app_id, _, _ = campaign.create(
-        asset_id=0,  # replace with USDC ASA
-        cost_per_impression=50_000,  # example
+        asset_id=ASA_ID,
+        cost_per_impression=50_000,
         min_view_seconds=15,
         target_region="IN",
     )
 
-    print("Campaign App ID:", campaign_app_id)
-
-    # set settlement executor
     campaign.call(
         "set_settlement_executor",
-        executor=address
+        executor=settlement_app_id
     )
 
-    print("\nDeployment complete.")
+    print("ASA_ID:", ASA_ID)
     print("Campaign:", campaign_app_id)
     print("Settlement:", settlement_app_id)
     print("Paymaster:", paymaster_app_id)

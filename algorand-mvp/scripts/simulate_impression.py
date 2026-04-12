@@ -1,11 +1,7 @@
-from algokit_utils import get_algod_client
-from algosdk.account import generate_account
-from algosdk.transaction import (
-    AssetConfigTxn,
-    AssetTransferTxn,
-    assign_group_id,
-)
-from algosdk import encoding
+from algokit_utils import get_algod_client, get_account
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
+from algosdk.transaction import AssetConfigTxn, AssetTransferTxn, assign_group_id
+from algosdk.logic import get_application_address
 
 from artifacts.ghostgas.campaign.campaign_client import CampaignClient
 from artifacts.ghostgas.attestation.attestation_client import AttestationClient
@@ -33,40 +29,30 @@ def create_asa(client, creator_sk, creator_addr):
     return result["asset-index"]
 
 
-def opt_in_asset(client, account_sk, account_addr, asset_id):
-    params = client.suggested_params()
-
-    txn = AssetTransferTxn(
-        sender=account_addr,
-        sp=params,
-        receiver=account_addr,
-        amt=0,
-        index=asset_id,
-    )
-
-    client.send_transaction(txn.sign(account_sk))
-
-
 def main():
     client = get_algod_client()
 
-    # accounts
-    adv_sk, adv_addr = generate_account()
-    pub_sk, pub_addr = generate_account()
-    user_sk, user_addr = generate_account()
+    acct = get_account(client, "dispenser")
+    signer = AccountTransactionSigner(acct.private_key)
 
-    print("\n=== GhostGas Production Simulation ===")
+    adv_addr = acct.address
+    adv_sk = acct.private_key
+
+    pub = get_account(client, "sandbox")
+    pub_addr = pub.address
+
+    user = get_account(client, "sandbox2")
+    user_addr = user.address
+
+    print("\n=== GhostGas Simulation ===")
 
     asset_id = create_asa(client, adv_sk, adv_addr)
-    print("ASA created:", asset_id)
+    print("ASA:", asset_id)
 
-    opt_in_asset(client, pub_sk, pub_addr, asset_id)
-    opt_in_asset(client, user_sk, user_addr, asset_id)
-
-    attestation = AttestationClient(client, adv_addr, adv_sk)
+    attestation = AttestationClient(client, adv_addr, signer)
     att_id, _, _ = attestation.create(verifier=adv_addr)
 
-    paymaster = PaymasterClient(client, adv_addr, adv_sk)
+    paymaster = PaymasterClient(client, adv_addr, signer)
     pay_id, _, _ = paymaster.create(
         settlement_executor=adv_addr,
         asset_id=asset_id,
@@ -74,7 +60,7 @@ def main():
         max_uses_per_window=3,
     )
 
-    settlement = SettlementClient(client, adv_addr, adv_sk)
+    settlement = SettlementClient(client, adv_addr, signer)
     set_id, _, _ = settlement.create(
         oracle=adv_addr,
         publisher_bps=7000,
@@ -83,7 +69,14 @@ def main():
         paymaster_app=pay_id,
     )
 
-    campaign = CampaignClient(client, adv_addr, adv_sk)
+    attestation.call("set_settlement", app_id=set_id)
+
+    paymaster.call(
+        "set_settlement_executor",
+        settlement_executor=set_id
+    )
+
+    campaign = CampaignClient(client, adv_addr, signer)
     camp_id, _, _ = campaign.create(
         asset_id=asset_id,
         cost_per_impression=50_000,
@@ -91,20 +84,19 @@ def main():
         target_region="IN",
     )
 
-    campaign.call("set_settlement_executor", executor=adv_addr)
+    campaign.call(
+        "set_settlement_executor",
+        executor=set_id
+    )
 
-    print("\nContracts deployed")
     print("Campaign:", camp_id)
-=
 
     params = client.suggested_params()
 
     payment_txn = AssetTransferTxn(
         sender=adv_addr,
         sp=params,
-        receiver=encoding.encode_address(
-            encoding.decode_address(campaign.app_address)
-        ),
+        receiver=get_application_address(camp_id),
         amt=500_000,
         index=asset_id,
     )
@@ -116,15 +108,14 @@ def main():
 
     assign_group_id([payment_txn, app_call_txn])
 
-    signed_payment = payment_txn.sign(adv_sk)
-    signed_call = app_call_txn.sign(adv_sk)
+    client.send_transactions([
+        payment_txn.sign(adv_sk),
+        app_call_txn.sign(adv_sk),
+    ])
 
-    client.send_transactions([signed_payment, signed_call])
+    print("Campaign funded")
 
-    print("Campaign funded with ASA")
-
-
-    proof_id = "user1:ad1:123"
+    proof_id = "user:campaign:123"
 
     attestation.call(
         "record_attestation",
@@ -140,11 +131,12 @@ def main():
         campaign_app=camp_id,
         publisher=pub_addr,
         user=user_addr,
+        user_view_seconds=15,
+        user_region="IN",
         now_ts=123456,
     )
 
     print("Settlement executed")
-
 
     eligible = paymaster.call(
         "is_eligible",
